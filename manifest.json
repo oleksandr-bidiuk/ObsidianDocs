@@ -1,7 +1,7 @@
 {
   "id": "canvas-code-links",
   "name": "Canvas Code Links",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "minAppVersion": "1.4.0",
   "description": "Open code files at specific lines using relative paths directly from Canvas cards and markdown links.",
   "author": "biduk",
