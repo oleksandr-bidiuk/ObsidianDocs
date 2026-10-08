@@ -56,7 +56,7 @@ export class LinkInterceptor {
 
     // Determine the source file (e.g. current .canvas file)
     const activeFile = this.app.workspace.getActiveFile();
-    const resolved = this.pathResolver.resolveTarget(parsed, activeFile);
+    const resolved = await this.pathResolver.resolveTarget(parsed, activeFile);
 
     await this.editorLauncher.openTarget(resolved);
   }

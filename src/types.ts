@@ -16,6 +16,8 @@ export interface CanvasCodeLinksSettings {
   recognizedExtensions: string[];
   decorateLinks: boolean;
   showNoticeOnOpen: boolean;
+  mobileOpenMode: 'viewer' | 'web_url';
+  mobileWebUrlTemplate: string;
 }
 
 export const DEFAULT_SETTINGS: CanvasCodeLinksSettings = {
@@ -32,6 +34,8 @@ export const DEFAULT_SETTINGS: CanvasCodeLinksSettings = {
   ],
   decorateLinks: true,
   showNoticeOnOpen: true,
+  mobileOpenMode: 'viewer',
+  mobileWebUrlTemplate: 'https://github.com/OWNER/REPO/blob/main/{relpath}#L{line}',
 };
 
 export interface ParsedCodeLink {
@@ -47,5 +51,7 @@ export interface ResolvedCodeTarget {
   line: number;
   column: number;
   exists: boolean;
+  /** Path relative to the vault root, or null when the file is outside the vault */
+  vaultPath: string | null;
   baseSource: 'canvas' | 'vault' | 'absolute' | 'not_found';
 }

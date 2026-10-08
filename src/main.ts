@@ -83,7 +83,7 @@ export default class CanvasCodeLinksPlugin extends Plugin {
           column: col,
           isCodeLink: true,
         };
-        const resolved = this.pathResolver.resolveTarget(parsed, activeFile);
+        const resolved = await this.pathResolver.resolveTarget(parsed, activeFile);
         await this.editorLauncher.openTarget(resolved);
       }
     });

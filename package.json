@@ -1,6 +1,6 @@
 {
   "name": "obsidian-canvas-code-links",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Navigate to code lines using relative paths directly from Obsidian Canvas cards and markdown links.",
   "main": "main.js",
   "scripts": {

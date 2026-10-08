@@ -18,70 +18,70 @@ function makeVault() {
 const mk = (dir, over = {}) => new PathResolver(new mock.App(dir), { ...DEFAULT_SETTINGS, ...over });
 const canvas = (p) => new mock.TFile(p);
 
-test("resolveTarget: relative to canvas folder", () => {
+test("resolveTarget: relative to canvas folder", async () => {
   const dir = makeVault();
   try {
     const r = mk(dir);
-    const t = r.resolveTarget(r.parseLink("../src/Player.cs:20"), canvas("docs/a.canvas"));
+    const t = await r.resolveTarget(r.parseLink("../src/Player.cs:20"), canvas("docs/a.canvas"));
     assert.deepEqual([t.exists, t.baseSource, t.line], [true, "canvas", 20]);
     assert.equal(t.resolvedPath, path.join(dir, "src/Player.cs"));
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
-test("resolveTarget: falls back to vault root", () => {
+test("resolveTarget: falls back to vault root", async () => {
   const dir = makeVault();
   try {
     const r = mk(dir);
-    const t = r.resolveTarget(r.parseLink("src/Player.cs:1"), canvas("docs/sub/a.canvas"));
+    const t = await r.resolveTarget(r.parseLink("src/Player.cs:1"), canvas("docs/sub/a.canvas"));
     assert.deepEqual([t.exists, t.baseSource], [true, "vault"]);
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
-test("resolveTarget: preferredRelativeRoot=vault checks vault first", () => {
+test("resolveTarget: preferredRelativeRoot=vault checks vault first", async () => {
   const dir = makeVault();
   try {
     fs.writeFileSync(path.join(dir, "Local.cs"), "//");
     const r = mk(dir, { preferredRelativeRoot: "vault" });
-    const t = r.resolveTarget(r.parseLink("./Local.cs"), canvas("docs/a.canvas"));
+    const t = await r.resolveTarget(r.parseLink("./Local.cs"), canvas("docs/a.canvas"));
     assert.equal(t.baseSource, "vault");
     assert.equal(t.resolvedPath, path.join(dir, "Local.cs"));
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
-test("resolveTarget: enableFallback=false does not try the second root", () => {
+test("resolveTarget: enableFallback=false does not try the second root", async () => {
   const dir = makeVault();
   try {
     const r = mk(dir, { enableFallback: false });
-    const t = r.resolveTarget(r.parseLink("src/Player.cs:1"), canvas("docs/sub/a.canvas"));
+    const t = await r.resolveTarget(r.parseLink("src/Player.cs:1"), canvas("docs/sub/a.canvas"));
     assert.deepEqual([t.exists, t.baseSource], [false, "not_found"]);
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
-test("resolveTarget: missing file reports not_found with a candidate path", () => {
+test("resolveTarget: missing file reports not_found with a candidate path", async () => {
   const dir = makeVault();
   try {
     const r = mk(dir);
-    const t = r.resolveTarget(r.parseLink("./Nope.cs:3"), canvas("docs/a.canvas"));
+    const t = await r.resolveTarget(r.parseLink("./Nope.cs:3"), canvas("docs/a.canvas"));
     assert.equal(t.exists, false);
     assert.equal(t.resolvedPath, path.join(dir, "docs/Nope.cs"));
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
-test("resolveTarget: absolute path is used as-is", () => {
+test("resolveTarget: absolute path is used as-is", async () => {
   const dir = makeVault();
   try {
     const abs = path.join(dir, "src/Player.cs");
     const r = mk(dir);
-    const t = r.resolveTarget(r.parseLink(abs + ":9"), canvas("docs/a.canvas"));
+    const t = await r.resolveTarget(r.parseLink(abs + ":9"), canvas("docs/a.canvas"));
     assert.deepEqual([t.exists, t.baseSource, t.line], [true, "absolute", 9]);
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
-test("resolveTarget: no current file uses vault root", () => {
+test("resolveTarget: no current file uses vault root", async () => {
   const dir = makeVault();
   try {
     const r = mk(dir, { preferredRelativeRoot: "canvas" });
-    const t = r.resolveTarget(r.parseLink("src/Player.cs"), null);
+    const t = await r.resolveTarget(r.parseLink("src/Player.cs"), null);
     assert.equal(t.exists, true);
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });

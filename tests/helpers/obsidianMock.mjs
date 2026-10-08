@@ -25,9 +25,19 @@ export class FileSystemAdapter {
   }
 }
 
+// Shared via globalThis because the bundled sources inline their own copy of this module.
+export const Platform = (globalThis.__cclPlatform ??= { isMobile: false, isDesktop: true, isDesktopApp: true });
+export const modals = (globalThis.__cclModals ??= []);
+
 export class App {
-  constructor(basePath = "") {
+  // `files` = vault-relative files visible to the mobile adapter: { "src/a.cs": "contents" }
+  constructor(basePath = "", files = {}) {
     const adapter = new FileSystemAdapter(basePath);
+    adapter.exists = async (p) => p in files;
+    adapter.read = async (p) => {
+      if (!(p in files)) throw new Error("ENOENT");
+      return files[p];
+    };
     this.vault = { adapter, getAbstractFileByPath: () => null };
     this.workspace = { getActiveFile: () => null, getLeaf: () => ({}) };
   }
@@ -51,7 +61,7 @@ export class Plugin {
   registerObsidianProtocolHandler(action, cb) { this.protocolHandlers[action] = cb; }
 }
 
-export class Modal { constructor(app) { this.app = app; } open() {} close() {} }
+export class Modal { constructor(app) { this.app = app; } open() { modals.push(this); } close() {} }
 export class PluginSettingTab { constructor(app, plugin) { this.app = app; this.plugin = plugin; } }
 export class Setting {}
 export class ItemView {}

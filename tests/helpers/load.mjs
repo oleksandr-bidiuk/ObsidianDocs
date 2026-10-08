@@ -20,6 +20,8 @@ export async function loadSources() {
       linkInterceptor: path.join(root, "src/linkInterceptor.ts"),
       main: path.join(root, "src/main.ts"),
       types: path.join(root, "src/types.ts"),
+      pathUtil: path.join(root, "src/pathUtil.ts"),
+      mobile: path.join(root, "src/mobile.ts"),
     },
     bundle: true,
     format: "esm",
@@ -27,6 +29,8 @@ export async function loadSources() {
     outdir,
     outExtension: { ".js": ".mjs" },
     alias: { obsidian: mockPath },
+    // sources call require("fs") lazily; give the ESM bundle a require
+    banner: { js: 'import { createRequire as __cr } from "module"; const require = __cr(import.meta.url);' },
     logLevel: "silent",
   });
   const imp = (n) => import(pathToFileURL(path.join(outdir, n + ".mjs")).href);
@@ -35,6 +39,8 @@ export async function loadSources() {
     ...(await imp("editorLauncher")),
     ...(await imp("linkInterceptor")),
     ...(await imp("types")),
+    pathUtil: await imp("pathUtil"),
+    ...(await imp("mobile")),
     Main: (await imp("main")).default,
     mock: await import(pathToFileURL(mockPath).href),
   };
