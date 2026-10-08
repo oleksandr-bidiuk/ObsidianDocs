@@ -176,13 +176,15 @@ var PathResolver = class {
       const vp = this.toVaultPath(absPath);
       return vp ? this.app.vault.adapter.exists(vp) : false;
     }
-    if (!import_obsidian.Platform.isDesktop) return false;
-    try {
-      const fs = require("fs");
-      return fs.existsSync(absPath);
-    } catch {
-      return false;
+    if (import_obsidian.Platform.isDesktop) {
+      try {
+        const fs = require("fs");
+        return fs.existsSync(absPath);
+      } catch {
+        return false;
+      }
     }
+    return false;
   }
   /**
    * Get the absolute filesystem directory of a given vault file (e.g. .canvas file)
@@ -612,7 +614,7 @@ ${resolvedPath}`, 6e3);
     if (vaultBase && absPath.toLowerCase().startsWith(vaultBase.toLowerCase())) {
       const relVault = absPath.substring(vaultBase.length).replace(/^[\\/]+/, "").replace(/\\/g, "/");
       const file = this.app.vault.getAbstractFileByPath(relVault);
-      if (file && "stat" in file) {
+      if (file instanceof import_obsidian3.TFile) {
         const leaf = this.app.workspace.getLeaf(false);
         await leaf.openFile(file);
         const view = leaf.view;
