@@ -65,3 +65,4 @@ export class Modal { constructor(app) { this.app = app; } open() { modals.push(t
 export class PluginSettingTab { constructor(app, plugin) { this.app = app; this.plugin = plugin; } }
 export class Setting {}
 export class ItemView {}
+export class MarkdownView {}

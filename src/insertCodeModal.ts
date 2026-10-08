@@ -1,14 +1,30 @@
-import { App, Modal, Notice, Setting, TFile, FileSystemAdapter, ItemView } from "obsidian";
+import { App, Editor, ItemView, MarkdownView, Modal, Notice, Setting, TFile } from "obsidian";
 import * as path from "./pathUtil";
 import { CanvasCodeLinksSettings } from "./types";
 import { PathResolver } from "./pathResolver";
+
+type LinkFormat = "markdown" | "card" | "protocol";
+
+/** Minimal shape of Obsidian's (undocumented) Canvas view API that we use */
+interface CanvasLikeView {
+  getViewType(): string;
+  canvas?: {
+    viewport?: { getCenter?: () => { x: number; y: number } };
+    createTextNode?: (opts: {
+      pos: { x: number; y: number };
+      size: { width: number; height: number };
+      text: string;
+      save: boolean;
+    }) => unknown;
+  };
+}
 
 export class InsertCodeLinkModal extends Modal {
   private filePath: string = "";
   private line: number = 1;
   private column: number = 1;
   private title: string = "";
-  private format: "markdown" | "card" | "protocol" = "markdown";
+  private format: LinkFormat = "markdown";
   private previewEl!: HTMLElement;
 
   constructor(
@@ -47,13 +63,13 @@ export class InsertCodeLinkModal extends Modal {
               new Notice("Clipboard is empty.");
             }
           } catch (e) {
-            new Notice("Failed to read clipboard: " + e);
+            new Notice("Failed to read clipboard: " + String(e));
           }
         });
       });
 
     // File Path Setting
-    const fileSetting = new Setting(contentEl)
+    new Setting(contentEl)
       .setName("File Path")
       .setDesc("Relative path (e.g. ./src/script.cs) or absolute path")
       .addText((text) => {
@@ -63,7 +79,7 @@ export class InsertCodeLinkModal extends Modal {
           .onChange((val) => {
             this.filePath = val.trim();
             this.updateAutoTitle();
-            this.updatePreview();
+            void this.updatePreview();
           });
       });
 
@@ -78,7 +94,7 @@ export class InsertCodeLinkModal extends Modal {
           .onChange((val) => {
             this.line = parseInt(val, 10) || 1;
             this.updateAutoTitle();
-            this.updatePreview();
+            void this.updatePreview();
           });
       });
 
@@ -92,7 +108,7 @@ export class InsertCodeLinkModal extends Modal {
           .setValue(this.title)
           .onChange((val) => {
             this.title = val;
-            this.updatePreview();
+            void this.updatePreview();
           });
       });
 
@@ -106,16 +122,16 @@ export class InsertCodeLinkModal extends Modal {
           .addOption("card", "Rich Code Card (Heading + Badge)")
           .addOption("protocol", "Code Protocol [file:line](code:./path:line)")
           .setValue(this.format)
-          .onChange((val: any) => {
-            this.format = val;
-            this.updatePreview();
+          .onChange((val) => {
+            this.format = val as LinkFormat;
+            void this.updatePreview();
           });
       });
 
     // Preview container
-    contentEl.createEl("div", { text: "Generated Output Preview:", cls: "setting-item-name" });
-    this.previewEl = contentEl.createEl("div", { cls: "code-link-preview-box" });
-    this.updatePreview();
+    contentEl.createDiv({ text: "Generated Output Preview:", cls: "setting-item-name" });
+    this.previewEl = contentEl.createDiv({ cls: "code-link-preview-box" });
+    void this.updatePreview();
 
     // Action buttons
     new Setting(contentEl)
@@ -124,7 +140,7 @@ export class InsertCodeLinkModal extends Modal {
           .setButtonText("Copy to Clipboard")
           .onClick(() => {
             const content = this.generateOutputText();
-            navigator.clipboard.writeText(content);
+            void navigator.clipboard.writeText(content);
             new Notice("Copied code link to clipboard!");
             this.close();
           });
@@ -206,8 +222,8 @@ export class InsertCodeLinkModal extends Modal {
 
   private async insertIntoActiveView() {
     const content = this.generateOutputText();
-    const activeView = (this.app.workspace as any).getActiveViewOfType?.(ItemView) 
-      || this.app.workspace.activeLeaf?.view as any;
+    const workspace = this.app.workspace;
+    const activeView = workspace.getActiveViewOfType(ItemView) as unknown as CanvasLikeView | null;
 
     // Check if active view is Canvas
     if (activeView && activeView.getViewType() === "canvas") {
@@ -227,7 +243,7 @@ export class InsertCodeLinkModal extends Modal {
     }
 
     // Check if active view is Markdown editor
-    const mdView = (this.app.workspace.getActiveViewOfType as any)("markdown");
+    const mdView = workspace.getActiveViewOfType(MarkdownView) as { editor?: Editor } | null;
     if (mdView && mdView.editor) {
       mdView.editor.replaceSelection(content);
       new Notice("Inserted code link into note!");

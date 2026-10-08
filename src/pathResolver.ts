@@ -2,7 +2,7 @@ import { App, FileSystemAdapter, Platform, TFile } from "obsidian";
 import * as path from "./pathUtil";
 
 // Node's require, used lazily and only on desktop (mobile never reaches it)
-declare const require: (id: string) => any;
+declare const require: (id: string) => unknown;
 import { CanvasCodeLinksSettings, ParsedCodeLink, ResolvedCodeTarget } from "./types";
 
 export class PathResolver {
@@ -19,7 +19,7 @@ export class PathResolver {
       return adapter.getBasePath();
     }
     // Fallback for custom or test environments
-    return (adapter as any).basePath || "";
+    return (adapter as { basePath?: string }).basePath || "";
   }
 
   /** Vault-relative form of an absolute path, or null when it lies outside the vault */
@@ -40,8 +40,10 @@ export class PathResolver {
       const vp = this.toVaultPath(absPath);
       return vp ? this.app.vault.adapter.exists(vp) : false;
     }
+    if (!Platform.isDesktop) return false;
     try {
-      return require("fs").existsSync(absPath);
+      const fs = require("fs") as typeof import("fs");
+      return fs.existsSync(absPath);
     } catch {
       return false;
     }
@@ -160,7 +162,7 @@ export class PathResolver {
    * URI paths look like /C:/dir/x.cs on Windows (drop the slash) and /home/x.cs on POSIX (keep it)
    */
   private stripUriRoot(p: string): string {
-    return /^\/[a-zA-Z]:[\/]/.test(p) ? p.substring(1) : p;
+    return /^\/[a-zA-Z]:[/]/.test(p) ? p.substring(1) : p;
   }
 
   /**
@@ -206,7 +208,7 @@ export class PathResolver {
     // Try vault base directory resolution
     const resolveFromVault = async () => {
       // Strip leading ./ if present for vault relative resolution
-      const sanitized = rawPath.replace(/^(\.[\/\\])+/, "");
+      const sanitized = rawPath.replace(/^(\.[/\\])+/, "");
       const candidate = path.resolve(vaultBase, sanitized);
       return {
         path: candidate,

@@ -70,7 +70,7 @@ test("post-processor decorates code links only, with title and icon", () => {
   const code = el("a", { href: "./x.cs:9" });
   const web = el("a", { href: "https://example.com" });
   const root = { querySelectorAll: () => [code, web] };
-  globalThis.document = { createElement: () => ({ className: "", innerHTML: "" }) };
+  globalThis.createSpan = () => ({ className: "", createSvg: () => ({ createSvg: () => ({}) }) });
   const icon = [];
   code.prepend = (c) => { c.className = "code-icon"; icon.push(c); };
   li.markdownPostProcessor(root, {});

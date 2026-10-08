@@ -21,7 +21,7 @@ export class CodeViewerModal extends Modal {
     let text: string;
     try {
       text = await this.app.vault.adapter.read(this.vaultPath);
-    } catch (e) {
+    } catch {
       new Notice(`Canvas Code Links: cannot read ${this.vaultPath}`);
       this.close();
       return;

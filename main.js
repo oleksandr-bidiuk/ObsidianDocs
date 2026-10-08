@@ -176,8 +176,10 @@ var PathResolver = class {
       const vp = this.toVaultPath(absPath);
       return vp ? this.app.vault.adapter.exists(vp) : false;
     }
+    if (!import_obsidian.Platform.isDesktop) return false;
     try {
-      return require("fs").existsSync(absPath);
+      const fs = require("fs");
+      return fs.existsSync(absPath);
     } catch {
       return false;
     }
@@ -266,7 +268,7 @@ var PathResolver = class {
    * URI paths look like /C:/dir/x.cs on Windows (drop the slash) and /home/x.cs on POSIX (keep it)
    */
   stripUriRoot(p) {
-    return /^\/[a-zA-Z]:[\/]/.test(p) ? p.substring(1) : p;
+    return /^\/[a-zA-Z]:[/]/.test(p) ? p.substring(1) : p;
   }
   /**
    * Resolve relative or absolute filePath to absolute path on disk
@@ -300,7 +302,7 @@ var PathResolver = class {
       };
     };
     const resolveFromVault = async () => {
-      const sanitized = rawPath.replace(/^(\.[\/\\])+/, "");
+      const sanitized = rawPath.replace(/^(\.[/\\])+/, "");
       const candidate = resolve(vaultBase, sanitized);
       return {
         path: candidate,
@@ -398,7 +400,7 @@ var CodeViewerModal = class extends import_obsidian2.Modal {
     let text;
     try {
       text = await this.app.vault.adapter.read(this.vaultPath);
-    } catch (e) {
+    } catch {
       new import_obsidian2.Notice(`Canvas Code Links: cannot read ${this.vaultPath}`);
       this.close();
       return;
@@ -424,6 +426,10 @@ var CodeViewerModal = class extends import_obsidian2.Modal {
 };
 
 // src/editorLauncher.ts
+function getNodeRequire() {
+  if (typeof window === "undefined") return void 0;
+  return window.require;
+}
 var EditorLauncher = class {
   constructor(app, settings) {
     this.app = app;
@@ -519,8 +525,9 @@ ${resolvedPath}`, 6e3);
    */
   async openExternalUri(uri) {
     try {
-      if (typeof window !== "undefined" && window.require) {
-        const { shell } = window.require("electron");
+      const nodeRequire = getNodeRequire();
+      if (nodeRequire) {
+        const { shell } = nodeRequire("electron");
         if (shell && shell.openExternal) {
           await shell.openExternal(uri);
           return true;
@@ -566,7 +573,7 @@ ${resolvedPath}`, 6e3);
     return success;
   }
   async openWithCustomUri(absPath, line, col) {
-    let uri = this.settings.customUriTemplate.replace(/\{path\}/g, absPath).replace(/\{uripath\}/g, this.formatUriPath(absPath)).replace(/\{line\}/g, String(line)).replace(/\{col\}/g, String(col));
+    const uri = this.settings.customUriTemplate.replace(/\{path\}/g, absPath).replace(/\{uripath\}/g, this.formatUriPath(absPath)).replace(/\{line\}/g, String(line)).replace(/\{col\}/g, String(col));
     return this.openExternalUri(uri);
   }
   async openWithCliCommand(absPath, line, col) {
@@ -576,8 +583,9 @@ ${resolvedPath}`, 6e3);
   executeCli(command) {
     return new Promise((resolve2) => {
       try {
-        if (typeof window !== "undefined" && window.require) {
-          const cp = window.require("child_process");
+        const nodeRequire = getNodeRequire();
+        if (nodeRequire) {
+          const cp = nodeRequire("child_process");
           cp.exec(command, (err) => {
             if (err) {
               console.error("CLI exec error:", err);
@@ -599,9 +607,10 @@ ${resolvedPath}`, 6e3);
   }
   async openInObsidian(absPath, line, col) {
     const adapter = this.app.vault.adapter;
-    const vaultBase = adapter.getBasePath ? adapter.getBasePath() : "";
+    const { getBasePath } = adapter;
+    const vaultBase = getBasePath ? getBasePath.call(adapter) : "";
     if (vaultBase && absPath.toLowerCase().startsWith(vaultBase.toLowerCase())) {
-      let relVault = absPath.substring(vaultBase.length).replace(/^[\\/]+/, "").replace(/\\/g, "/");
+      const relVault = absPath.substring(vaultBase.length).replace(/^[\\/]+/, "").replace(/\\/g, "/");
       const file = this.app.vault.getAbstractFileByPath(relVault);
       if (file && "stat" in file) {
         const leaf = this.app.workspace.getLeaf(false);
@@ -678,9 +687,21 @@ var LinkInterceptor = class {
         a.setAttribute("data-code-link", linkCandidate);
         a.setAttribute("title", `Open in ${this.settings.targetEditor.toUpperCase()} at line ${parsed.line}`);
         if (!a.querySelector(".code-icon")) {
-          const iconSpan = document.createElement("span");
-          iconSpan.className = "code-icon";
-          iconSpan.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>`;
+          const iconSpan = createSpan({ cls: "code-icon" });
+          const svg = iconSpan.createSvg("svg", {
+            attr: {
+              viewBox: "0 0 24 24",
+              width: "14",
+              height: "14",
+              stroke: "currentColor",
+              "stroke-width": "2",
+              fill: "none",
+              "stroke-linecap": "round",
+              "stroke-linejoin": "round"
+            }
+          });
+          svg.createSvg("polyline", { attr: { points: "16 18 22 12 16 6" } });
+          svg.createSvg("polyline", { attr: { points: "8 6 2 12 8 18" } });
           a.prepend(iconSpan);
         }
       }
@@ -699,7 +720,6 @@ var CanvasCodeLinksSettingTab = class extends import_obsidian4.PluginSettingTab 
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    containerEl.createEl("h2", { text: "Canvas Code Links Settings" });
     new import_obsidian4.Setting(containerEl).setName("Default Code Editor").setDesc("The editor to launch when clicking a code link in Canvas or notes.").addDropdown((drop) => {
       drop.addOption("vscode", "Visual Studio Code (vscode://)").addOption("cursor", "Cursor (cursor://)").addOption("rider", "JetBrains Rider (jetbrains://rider)").addOption("vscode_insiders", "VS Code Insiders").addOption("obsidian", "Obsidian Internal Editor").addOption("custom_uri", "Custom URI Scheme").addOption("custom_cli", "Custom CLI Command").setValue(this.plugin.settings.targetEditor).onChange(async (v) => {
         const value = v;
@@ -724,7 +744,7 @@ var CanvasCodeLinksSettingTab = class extends import_obsidian4.PluginSettingTab 
         });
       });
     }
-    containerEl.createEl("h3", { text: "Mobile (iOS / Android)" });
+    new import_obsidian4.Setting(containerEl).setName("Mobile (iOS / Android)").setHeading();
     new import_obsidian4.Setting(containerEl).setName("Mobile open mode").setDesc("Desktop editors cannot be launched on mobile. Show the file in a built-in viewer, or open it on the web (GitHub, github.dev, ...). The code must be inside the vault (e.g. synced with Obsidian Git).").addDropdown((drop) => {
       drop.addOption("viewer", "Built-in code viewer (works offline)").addOption("web_url", "Open web URL (repository host)").setValue(this.plugin.settings.mobileOpenMode).onChange(async (v) => {
         this.plugin.settings.mobileOpenMode = v;
@@ -809,43 +829,43 @@ var InsertCodeLinkModal = class extends import_obsidian5.Modal {
             new import_obsidian5.Notice("Clipboard is empty.");
           }
         } catch (e) {
-          new import_obsidian5.Notice("Failed to read clipboard: " + e);
+          new import_obsidian5.Notice("Failed to read clipboard: " + String(e));
         }
       });
     });
-    const fileSetting = new import_obsidian5.Setting(contentEl).setName("File Path").setDesc("Relative path (e.g. ./src/script.cs) or absolute path").addText((text) => {
+    new import_obsidian5.Setting(contentEl).setName("File Path").setDesc("Relative path (e.g. ./src/script.cs) or absolute path").addText((text) => {
       text.setPlaceholder("./src/script.cs").setValue(this.filePath).onChange((val) => {
         this.filePath = val.trim();
         this.updateAutoTitle();
-        this.updatePreview();
+        void this.updatePreview();
       });
     });
     new import_obsidian5.Setting(contentEl).setName("Line Number").setDesc("Target line number in the source file").addText((text) => {
       text.setPlaceholder("1").setValue(String(this.line)).onChange((val) => {
         this.line = parseInt(val, 10) || 1;
         this.updateAutoTitle();
-        this.updatePreview();
+        void this.updatePreview();
       });
     });
     new import_obsidian5.Setting(contentEl).setName("Card / Link Title").setDesc("Visible text on the card or link").addText((text) => {
       text.setPlaceholder("script.cs:42").setValue(this.title).onChange((val) => {
         this.title = val;
-        this.updatePreview();
+        void this.updatePreview();
       });
     });
     new import_obsidian5.Setting(contentEl).setName("Format Style").setDesc("Choose format for card or markdown link").addDropdown((drop) => {
       drop.addOption("markdown", "Markdown Link [file:line](./path:line)").addOption("card", "Rich Code Card (Heading + Badge)").addOption("protocol", "Code Protocol [file:line](code:./path:line)").setValue(this.format).onChange((val) => {
         this.format = val;
-        this.updatePreview();
+        void this.updatePreview();
       });
     });
-    contentEl.createEl("div", { text: "Generated Output Preview:", cls: "setting-item-name" });
-    this.previewEl = contentEl.createEl("div", { cls: "code-link-preview-box" });
-    this.updatePreview();
+    contentEl.createDiv({ text: "Generated Output Preview:", cls: "setting-item-name" });
+    this.previewEl = contentEl.createDiv({ cls: "code-link-preview-box" });
+    void this.updatePreview();
     new import_obsidian5.Setting(contentEl).addButton((btn) => {
       btn.setButtonText("Copy to Clipboard").onClick(() => {
         const content = this.generateOutputText();
-        navigator.clipboard.writeText(content);
+        void navigator.clipboard.writeText(content);
         new import_obsidian5.Notice("Copied code link to clipboard!");
         this.close();
       });
@@ -914,7 +934,8 @@ var InsertCodeLinkModal = class extends import_obsidian5.Modal {
   }
   async insertIntoActiveView() {
     const content = this.generateOutputText();
-    const activeView = this.app.workspace.getActiveViewOfType?.(import_obsidian5.ItemView) || this.app.workspace.activeLeaf?.view;
+    const workspace = this.app.workspace;
+    const activeView = workspace.getActiveViewOfType(import_obsidian5.ItemView);
     if (activeView && activeView.getViewType() === "canvas") {
       const canvas = activeView.canvas;
       if (canvas && typeof canvas.createTextNode === "function") {
@@ -929,7 +950,7 @@ var InsertCodeLinkModal = class extends import_obsidian5.Modal {
         return;
       }
     }
-    const mdView = this.app.workspace.getActiveViewOfType("markdown");
+    const mdView = workspace.getActiveViewOfType(import_obsidian5.MarkdownView);
     if (mdView && mdView.editor) {
       mdView.editor.replaceSelection(content);
       new import_obsidian5.Notice("Inserted code link into note!");
@@ -965,7 +986,7 @@ var CanvasCodeLinksPlugin = class extends import_obsidian6.Plugin {
       document,
       "click",
       (evt) => {
-        this.linkInterceptor.handleClick(evt);
+        void this.linkInterceptor.handleClick(evt);
       },
       true
       // Capture phase!
@@ -989,7 +1010,7 @@ var CanvasCodeLinksPlugin = class extends import_obsidian6.Plugin {
         if (activeFile) {
           if (!checking) {
             const vaultPath = activeFile.path.replace(/ /g, "%20").replace(/\(/g, "%28").replace(/\)/g, "%29");
-            navigator.clipboard.writeText(`[${activeFile.name}:1](${vaultPath}:1)`);
+            void navigator.clipboard.writeText(`[${activeFile.name}:1](${vaultPath}:1)`);
           }
           return true;
         }
