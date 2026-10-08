@@ -29,7 +29,8 @@ export class CanvasCodeLinksSettingTab extends PluginSettingTab {
           .addOption("custom_uri", "Custom URI Scheme")
           .addOption("custom_cli", "Custom CLI Command")
           .setValue(this.plugin.settings.targetEditor)
-          .onChange(async (value: TargetEditor) => {
+          .onChange(async (v) => {
+            const value = v as TargetEditor;
             this.plugin.settings.targetEditor = value;
             await this.plugin.saveSettings();
             this.display(); // Refresh to show/hide conditional fields
@@ -66,6 +67,38 @@ export class CanvasCodeLinksSettingTab extends PluginSettingTab {
         });
     }
 
+    containerEl.createEl("h3", { text: "Mobile (iOS / Android)" });
+
+    new Setting(containerEl)
+      .setName("Mobile open mode")
+      .setDesc("Desktop editors cannot be launched on mobile. Show the file in a built-in viewer, or open it on the web (GitHub, github.dev, ...). The code must be inside the vault (e.g. synced with Obsidian Git).")
+      .addDropdown((drop) => {
+        drop
+          .addOption("viewer", "Built-in code viewer (works offline)")
+          .addOption("web_url", "Open web URL (repository host)")
+          .setValue(this.plugin.settings.mobileOpenMode)
+          .onChange(async (v) => {
+            this.plugin.settings.mobileOpenMode = v as "viewer" | "web_url";
+            await this.plugin.saveSettings();
+            this.display();
+          });
+      });
+
+    if (this.plugin.settings.mobileOpenMode === "web_url") {
+      new Setting(containerEl)
+        .setName("Web URL template")
+        .setDesc("Variables: {relpath} = path inside the vault, {filename}, {line}, {col}. Replace OWNER/REPO/branch with yours.")
+        .addText((text) => {
+          text
+            .setPlaceholder("https://github.com/OWNER/REPO/blob/main/{relpath}#L{line}")
+            .setValue(this.plugin.settings.mobileWebUrlTemplate)
+            .onChange(async (value) => {
+              this.plugin.settings.mobileWebUrlTemplate = value;
+              await this.plugin.saveSettings();
+            });
+        });
+    }
+
     new Setting(containerEl)
       .setName("Preferred Path Resolution Root")
       .setDesc("Where relative paths (like ./script.cs or ../src/script.cs) are resolved from first.")
@@ -74,8 +107,8 @@ export class CanvasCodeLinksSettingTab extends PluginSettingTab {
           .addOption("canvas", "Relative to current .canvas file folder (Recommended)")
           .addOption("vault", "Relative to Vault / Repository Root")
           .setValue(this.plugin.settings.preferredRelativeRoot)
-          .onChange(async (val: "canvas" | "vault") => {
-            this.plugin.settings.preferredRelativeRoot = val;
+          .onChange(async (v) => {
+            this.plugin.settings.preferredRelativeRoot = v as "canvas" | "vault";
             await this.plugin.saveSettings();
           });
       });

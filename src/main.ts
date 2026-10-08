@@ -59,8 +59,9 @@ export default class CanvasCodeLinksPlugin extends Plugin {
         const activeFile = this.app.workspace.getActiveFile();
         if (activeFile) {
           if (!checking) {
-            const relPath = `./${activeFile.name}:1`;
-            navigator.clipboard.writeText(`[${activeFile.name}:1](${relPath})`);
+            // Vault-relative path (resolver falls back to the vault root); escape chars that break md links
+            const vaultPath = activeFile.path.replace(/ /g, "%20").replace(/\(/g, "%28").replace(/\)/g, "%29");
+            navigator.clipboard.writeText(`[${activeFile.name}:1](${vaultPath}:1)`);
           }
           return true;
         }
@@ -82,7 +83,7 @@ export default class CanvasCodeLinksPlugin extends Plugin {
           column: col,
           isCodeLink: true,
         };
-        const resolved = this.pathResolver.resolveTarget(parsed, activeFile);
+        const resolved = await this.pathResolver.resolveTarget(parsed, activeFile);
         await this.editorLauncher.openTarget(resolved);
       }
     });

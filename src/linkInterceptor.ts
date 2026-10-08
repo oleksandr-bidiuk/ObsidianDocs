@@ -19,8 +19,12 @@ export class LinkInterceptor {
     if (!target) return;
 
     // Only intercept if the user clicked on an actual link or code badge, NOT on the card container
-    const linkEl = target.closest("a, .canvas-code-link-badge, [data-code-link]");
+    const linkEl = target.closest("a, .canvas-code-link-badge, [data-code-link], .cm-link, .cm-url");
     if (!linkEl) return;
+
+    // In the editor (CodeMirror) links are plain spans; only Ctrl/Cmd+click follows them
+    const isEditorLink = !!linkEl.matches?.(".cm-link, .cm-url") && !linkEl.hasAttribute("href");
+    if (isEditorLink && !(evt.ctrlKey || evt.metaKey)) return;
 
     let linkCandidate = "";
 
@@ -32,8 +36,9 @@ export class LinkInterceptor {
       linkCandidate = linkEl.getAttribute("href") || "";
     }
 
-    if (!linkCandidate && linkEl.tagName.toLowerCase() === "a") {
-      const text = linkEl.textContent?.trim() || "";
+    if (!linkCandidate && (isEditorLink || linkEl.tagName.toLowerCase() === "a")) {
+      // Editor URL spans render as "(./file.cs:42)" - drop the wrapping parens
+      const text = (linkEl.textContent?.trim() || "").replace(/^\(|\)$/g, "");
       if (text.match(/\.[a-zA-Z0-9]+(?::\d+|#L?\d+)/)) {
         linkCandidate = text;
       }
@@ -51,7 +56,7 @@ export class LinkInterceptor {
 
     // Determine the source file (e.g. current .canvas file)
     const activeFile = this.app.workspace.getActiveFile();
-    const resolved = this.pathResolver.resolveTarget(parsed, activeFile);
+    const resolved = await this.pathResolver.resolveTarget(parsed, activeFile);
 
     await this.editorLauncher.openTarget(resolved);
   }

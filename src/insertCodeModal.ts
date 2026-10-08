@@ -1,5 +1,5 @@
 import { App, Modal, Notice, Setting, TFile, FileSystemAdapter, ItemView } from "obsidian";
-import * as path from "path";
+import * as path from "./pathUtil";
 import { CanvasCodeLinksSettings } from "./types";
 import { PathResolver } from "./pathResolver";
 
@@ -148,7 +148,7 @@ export class InsertCodeLinkModal extends Modal {
       this.column = parsed.column;
 
       // If clipboard was an absolute path, convert to relative if canvas is active
-      if (this.targetCanvasFile && (path.isAbsolute(this.filePath) || /^[a-zA-Z]:[\\/]/.test(this.filePath))) {
+      if (this.targetCanvasFile && path.isAbsolute(this.filePath)) {
         this.filePath = this.pathResolver.makeRelativePath(this.targetCanvasFile, this.filePath);
       }
 
@@ -183,15 +183,19 @@ export class InsertCodeLinkModal extends Modal {
     }
   }
 
-  private updatePreview() {
+  private previewSeq = 0;
+
+  private async updatePreview() {
     if (!this.previewEl) return;
+    const seq = ++this.previewSeq;
     const text = this.generateOutputText();
     
     // Also show resolved path verification
     const parsed = this.pathResolver.parseLink(this.filePath + ":" + this.line);
     let status = "";
     if (parsed) {
-      const resolved = this.pathResolver.resolveTarget(parsed, this.targetCanvasFile);
+      const resolved = await this.pathResolver.resolveTarget(parsed, this.targetCanvasFile);
+      if (seq !== this.previewSeq) return; // a newer update superseded this one
       status = resolved.exists 
         ? `\n\n✓ Exists on disk: ${resolved.resolvedPath}` 
         : `\n\n⚠ File not yet found at: ${resolved.resolvedPath}`;

@@ -1,6 +1,8 @@
-import * as path from "path";
-import { App, Notice } from "obsidian";
+import * as path from "./pathUtil";
+import { App, Notice, Platform } from "obsidian";
 import { CanvasCodeLinksSettings, ResolvedCodeTarget } from "./types";
+import { buildWebUrl } from "./mobile";
+import { CodeViewerModal } from "./codeViewerModal";
 
 export class EditorLauncher {
   constructor(private app: App, private settings: CanvasCodeLinksSettings) {}
@@ -18,6 +20,10 @@ export class EditorLauncher {
 
     if (this.settings.showNoticeOnOpen) {
       new Notice(`Opening ${filename}:${line} in ${this.getEditorDisplayName()}...`, 2500);
+    }
+
+    if (Platform.isMobile) {
+      return this.openOnMobile(target);
     }
 
     switch (this.settings.targetEditor) {
@@ -38,6 +44,28 @@ export class EditorLauncher {
       default:
         return this.openInVSCode(resolvedPath, line, column);
     }
+  }
+
+  /**
+   * Mobile cannot launch desktop editors: show the file in-app, or open a web URL
+   * (GitHub / github.dev / ...) built from the configured template.
+   */
+  private async openOnMobile(target: ResolvedCodeTarget): Promise<boolean> {
+    const { vaultPath, line, column } = target;
+
+    if (this.settings.mobileOpenMode === "web_url") {
+      const url = buildWebUrl(this.settings.mobileWebUrlTemplate, vaultPath, line, column);
+      if (url) return this.openExternalUri(url);
+      new Notice("Canvas Code Links: set your repository URL in plugin settings (Mobile). Using the built-in viewer.");
+    }
+
+    if (!target.exists) return false;
+    if (!vaultPath) {
+      new Notice("Canvas Code Links: file is outside the vault and cannot be opened on mobile.");
+      return false;
+    }
+    new CodeViewerModal(this.app, vaultPath, line, column).open();
+    return true;
   }
 
   private getEditorDisplayName(): string {

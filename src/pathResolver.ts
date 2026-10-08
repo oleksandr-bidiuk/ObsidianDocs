@@ -1,6 +1,8 @@
-import * as path from "path";
-import * as fs from "fs";
-import { App, FileSystemAdapter, TFile } from "obsidian";
+import { App, FileSystemAdapter, Platform, TFile } from "obsidian";
+import * as path from "./pathUtil";
+
+// Node's require, used lazily and only on desktop (mobile never reaches it)
+declare const require: (id: string) => any;
 import { CanvasCodeLinksSettings, ParsedCodeLink, ResolvedCodeTarget } from "./types";
 
 export class PathResolver {
@@ -10,12 +12,39 @@ export class PathResolver {
    * Get the absolute filesystem path of the vault root
    */
   getVaultBasePath(): string {
+    // Mobile has no real filesystem path: use a virtual root "/" mapped onto the vault
+    if (Platform.isMobile) return "/";
     const adapter = this.app.vault.adapter;
     if (adapter instanceof FileSystemAdapter) {
       return adapter.getBasePath();
     }
     // Fallback for custom or test environments
     return (adapter as any).basePath || "";
+  }
+
+  /** Vault-relative form of an absolute path, or null when it lies outside the vault */
+  toVaultPath(absPath: string): string | null {
+    const n = path.normalize(absPath);
+    const base = path.normalize(this.getVaultBasePath());
+    const ci = /^[a-zA-Z]:/.test(n);
+    const [nn, bb] = ci ? [n.toLowerCase(), base.toLowerCase()] : [n, base];
+    if (bb === "/") return n.startsWith("/") ? n.slice(1) : null;
+    if (nn === bb) return "";
+    if (nn.startsWith(bb + "/")) return n.slice(base.length + 1);
+    return null;
+  }
+
+  /** Does the file exist? fs on desktop, the vault adapter on mobile */
+  private async fileExists(absPath: string): Promise<boolean> {
+    if (Platform.isMobile) {
+      const vp = this.toVaultPath(absPath);
+      return vp ? this.app.vault.adapter.exists(vp) : false;
+    }
+    try {
+      return require("fs").existsSync(absPath);
+    } catch {
+      return false;
+    }
   }
 
   /**
@@ -49,18 +78,18 @@ export class PathResolver {
 
     let isExplicitCodeScheme = false;
 
-    // Remove prefixes like code://, code:, vscode://file/, file://
+    // Remove prefixes like code://, code:, vscode://file, file://
     if (/^code:\/\//i.test(link)) {
       link = link.replace(/^code:\/\//i, "");
       isExplicitCodeScheme = true;
     } else if (/^code:/i.test(link)) {
       link = link.replace(/^code:/i, "");
       isExplicitCodeScheme = true;
-    } else if (/^file:\/\/\/?/i.test(link)) {
-      link = link.replace(/^file:\/\/\/?/i, "");
+    } else if (/^file:\/\//i.test(link)) {
+      link = this.stripUriRoot(link.replace(/^file:\/\//i, ""));
       isExplicitCodeScheme = true;
-    } else if (/^vscode:\/\/file\//i.test(link)) {
-      link = link.replace(/^vscode:\/\/file\//i, "");
+    } else if (/^vscode:\/\/file(?=\/)/i.test(link)) {
+      link = this.stripUriRoot(link.replace(/^vscode:\/\/file/i, ""));
       isExplicitCodeScheme = true;
     }
 
@@ -115,7 +144,8 @@ export class PathResolver {
 
     const isRecognizedExt = this.settings.recognizedExtensions.map(e => e.toLowerCase()).includes(ext);
 
-    const isCodeLink = isExplicitCodeScheme || isRecognizedExt || line > 1;
+    // A line number alone must not turn arbitrary links (e.g. [[Chapter:5]]) into code links
+    const isCodeLink = isExplicitCodeScheme || isRecognizedExt;
 
     return {
       originalLink: rawLink,
@@ -127,20 +157,28 @@ export class PathResolver {
   }
 
   /**
+   * URI paths look like /C:/dir/x.cs on Windows (drop the slash) and /home/x.cs on POSIX (keep it)
+   */
+  private stripUriRoot(p: string): string {
+    return /^\/[a-zA-Z]:[\/]/.test(p) ? p.substring(1) : p;
+  }
+
+  /**
    * Resolve relative or absolute filePath to absolute path on disk
    */
-  resolveTarget(parsed: ParsedCodeLink, currentFile: TFile | null): ResolvedCodeTarget {
+  async resolveTarget(parsed: ParsedCodeLink, currentFile: TFile | null): Promise<ResolvedCodeTarget> {
     const vaultBase = this.getVaultBasePath();
     const rawPath = parsed.filePath;
 
     // If it's already an absolute path on Windows (e.g. C:\...) or Unix (/...)
-    if (path.isAbsolute(rawPath) || /^[a-zA-Z]:[\\/]/.test(rawPath)) {
-      const exists = fs.existsSync(rawPath);
+    if (path.isAbsolute(rawPath)) {
+      const exists = await this.fileExists(rawPath);
       return {
         resolvedPath: path.normalize(rawPath),
         line: parsed.line,
         column: parsed.column,
         exists,
+        vaultPath: this.toVaultPath(rawPath),
         baseSource: exists ? "absolute" : "not_found",
       };
     }
@@ -157,22 +195,22 @@ export class PathResolver {
       : ["vault", "canvas"];
 
     // Try canvas directory resolution
-    const resolveFromCanvas = () => {
+    const resolveFromCanvas = async () => {
       const candidate = path.resolve(canvasDir, rawPath);
       return {
         path: candidate,
-        exists: fs.existsSync(candidate),
+        exists: await this.fileExists(candidate),
       };
     };
 
     // Try vault base directory resolution
-    const resolveFromVault = () => {
+    const resolveFromVault = async () => {
       // Strip leading ./ if present for vault relative resolution
       const sanitized = rawPath.replace(/^(\.[\/\\])+/, "");
       const candidate = path.resolve(vaultBase, sanitized);
       return {
         path: candidate,
-        exists: fs.existsSync(candidate),
+        exists: await this.fileExists(candidate),
       };
     };
 
@@ -180,7 +218,7 @@ export class PathResolver {
 
     for (const source of preferredOrder) {
       if (source === "canvas") {
-        const res = resolveFromCanvas();
+        const res = await resolveFromCanvas();
         if (!firstCandidatePath) firstCandidatePath = res.path;
         if (res.exists) {
           return {
@@ -188,11 +226,12 @@ export class PathResolver {
             line: parsed.line,
             column: parsed.column,
             exists: true,
+            vaultPath: this.toVaultPath(res.path),
             baseSource: "canvas",
           };
         }
       } else if (source === "vault") {
-        const res = resolveFromVault();
+        const res = await resolveFromVault();
         if (!firstCandidatePath) firstCandidatePath = res.path;
         if (res.exists) {
           return {
@@ -200,6 +239,7 @@ export class PathResolver {
             line: parsed.line,
             column: parsed.column,
             exists: true,
+            vaultPath: this.toVaultPath(res.path),
             baseSource: "vault",
           };
         }
@@ -211,11 +251,13 @@ export class PathResolver {
     }
 
     // If file doesn't exist on disk yet, return normalized preferred candidate path
+    const missingPath = path.normalize(firstCandidatePath || path.resolve(canvasDir, rawPath));
     return {
-      resolvedPath: path.normalize(firstCandidatePath || path.resolve(canvasDir, rawPath)),
+      resolvedPath: missingPath,
       line: parsed.line,
       column: parsed.column,
       exists: false,
+      vaultPath: this.toVaultPath(missingPath),
       baseSource: "not_found",
     };
   }
@@ -228,8 +270,7 @@ export class PathResolver {
     let rel = path.relative(canvasDir, targetAbsoluteDiskPath);
 
     // Normalize to forward slashes for clean markdown portability
-    rel = rel.replace(/\\/g, "/");
-
+    
     if (!rel.startsWith("./") && !rel.startsWith("../")) {
       rel = "./" + rel;
     }
