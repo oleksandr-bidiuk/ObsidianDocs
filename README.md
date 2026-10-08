@@ -1,110 +1,80 @@
-# Canvas Code Links (Obsidian Plugin)
+**English** | [Русский](README.ru.md)
 
-Плагин для **Obsidian**, позволяющий связывать карточки в **Canvas** (и обычных заметках) с конкретными строками исходного кода (например, `script.cs:42`) через **относительные пути (relative paths)** и автоматически открывать их в **Visual Studio Code** (а также в Cursor, Rider или Obsidian).
+# Canvas Code Links
 
----
+Link Canvas cards and notes straight to a line of source code. Write `[Player](../src/Player.cs#L105)` and a click opens the file at that line in VS Code, Cursor, Rider or Obsidian. Built for documenting a game or any code base that lives next to your vault.
 
-## 🚀 Основные возможности
+Works on desktop and on mobile (iOS / Android).
 
-1. **Относительные пути (Relative Paths)**:
-   - Ссылки вида `./script.cs:42` или `../src/PlayerController.cs#L105` автоматически рассчитываются относительно папки, в которой лежит файл `.canvas`.
-   - Если файл не найден рядом с канвасом, плагин автоматически проверяет путь от **корня хранилища / репозитория (Vault Root)**.
-   - Идеально для Git-репозиториев: сохраняет переносимость ссылок между участниками команды на Windows, macOS и Linux.
+## Features
 
-2. **Переход к точной строке и колонке**:
-   - Поддерживает синтаксис `:line`, `:line:col`, а также `#Lline` (например `#L42` или `#L42C10`).
-   - Открывает файл ровно на целевой строке.
+- **Relative paths.** Links are resolved from the folder of the current `.canvas` / note first, then from the vault root. Links stay portable across Windows, macOS and Linux.
+- **Exact line and column.** `:42`, `:42:15`, `#L42`, `#L42C10`.
+- **Several editors.** VS Code (also Insiders), Cursor, JetBrains Rider, Obsidian itself, or your own URI / CLI template.
+- **Insert Code Link command.** Builds a link from the clipboard (`path:line`), computes the relative path and checks the file exists.
+- **Badges.** Code links in Canvas cards and notes get an icon and tooltip.
+- **Mobile.** Built-in read-only code viewer, or open your repository on the web (GitHub, GitLab, github.dev).
 
-3. **Интеграция с редакторами кода**:
-   - **Visual Studio Code** (по умолчанию, через протокол `vscode://file/...` с автоматическим fallback на консольную команду `code -g`).
-   - **Cursor** (`cursor://file/...`).
-   - **JetBrains Rider** (`jetbrains://rider/...` или CLI).
-   - **Внутренний редактор Obsidian** (для текстовых файлов внутри хранилища).
-   - **Кастомный URI или консольная команда** (настраивается в параметрах плагина).
+## Link syntax
 
-4. **Интерактивное модальное окно (Insert Code Link)**:
-   - Вставка ссылки через горячую клавишу или палитру команд (`Ctrl+P` -> `Canvas Code Links: Insert Code Link Card`).
-   - Быстрая вставка из буфера обмена (автоматический парсинг `путь:строка`).
-   - Автоматический расчет относительного пути и проверка существования файла на диске.
-   - Выбор стиля карточки: стандартная ссылка, карточка с заголовком или протокол.
+| Format | Example |
+|---|---|
+| Line | `[script.cs:42](./scripts/script.cs:42)` |
+| Line and column | `[script.cs](./scripts/script.cs:42:15)` |
+| GitHub style | `[Player.cs](../src/Player.cs#L105)` |
+| Explicit scheme | `[script.cs](code:./src/script.cs:50)` |
+| Wikilink | `[[./scripts/script.cs:42]]` |
+| Obsidian URI | `obsidian://canvas-code-link?file=./script.cs&line=42` |
 
-5. **Визуальные бейджи и иконки в Canvas**:
-   - При предпросмотре карточки в Canvas ссылки на код оформляются в виде аккуратного бейджа с иконкой `{ }` и всплывающей подсказкой.
-   - Перехват клика предотвращает создание Obsidian пустых заметок-пустышек вида `script.cs:42.md`.
+A link is treated as code when it has a recognized extension (configurable) or an explicit `code:` / `file://` / `vscode://file/` prefix.
 
----
+## Installation
 
-## 📝 Поддерживаемый синтаксис ссылок
+Until the plugin is available in the community list, install it manually:
 
-Внутри текстовой карточки Canvas или обычной заметки вы можете использовать любой удобный формат:
+1. Download `main.js`, `manifest.json` and `styles.css` from the [latest release](../../releases/latest).
+2. Copy them to `<vault>/.obsidian/plugins/canvas-code-links/`.
+3. In Obsidian: **Settings → Community plugins**, turn off Restricted mode, reload, and enable **Canvas Code Links**.
 
-| Формат | Пример | Описание |
-|---|---|---|
-| **Двоеточие строки** | `[script.cs:42](./scripts/script.cs:42)` | Стандартная ссылка на строку 42 |
-| **Строка и колонка** | `[script.cs:42:15](./scripts/script.cs:42:15)` | Переход на строку 42, символ 15 |
-| **Стиль GitHub `#L`** | `[Player.cs](../src/Player.cs#L105)` | Переход на строку 105 |
-| **Явный протокол `code:`** | `[script.cs](code:./src/script.cs:50)` | Гарантированное распознавание как ссылки на код |
-| **Вики-ссылки** | `[[./scripts/script.cs:42]]` | Внутренний формат Obsidian |
-| **Протокол Obsidian URI** | `obsidian://canvas-code-link?file=./script.cs&line=42` | Внешний вызов через Obsidian URI |
+On mobile, sync the vault (including the `.obsidian` folder) with Obsidian Sync, iCloud, Syncthing or similar, then enable the plugin on the phone.
 
----
+## Mobile
 
-## 🛠 Установка в Obsidian
+A phone cannot launch desktop editors, so choose a mode in **Settings → Canvas Code Links → Mobile**:
 
-### Способ 1: Локальная папка (для вашего репозитория)
-1. Скомпилируйте плагин (или используйте готовые файлы `main.js`, `manifest.json`, `styles.css`).
-2. Скопируйте папку с плагином в директорию вашего хранилища:
-   ```
-   <Ваше_Хранилище>/.obsidian/plugins/canvas-code-links/
-   ├── main.js
-   ├── manifest.json
-   └── styles.css
-   ```
-3. Откройте Obsidian -> **Настройки (Settings)** -> **Сторонние плагины (Community plugins)**.
-4. Нажмите кнопку **Обновить (Reload)** и включите **Canvas Code Links**.
+| Mode | What it does |
+|---|---|
+| Built-in code viewer (default) | Shows the file with the target line highlighted. Works offline. |
+| Open web URL | Opens a repository URL built from a template, e.g. `https://github.com/OWNER/REPO/blob/main/{relpath}#L{line}` |
 
----
+The code must be inside the vault (for example a game repo synced with Obsidian Git). Links in the editor are followed with Ctrl/Cmd+click, so on a phone use reading view or rendered Canvas cards.
 
-## ⚙️ Настройки плагина
+## Settings
 
-В разделе настроек `Canvas Code Links` доступны:
-- **Default Code Editor**: выбор целевого редактора (VS Code, Cursor, Rider, Obsidian, кастомная команда).
-- **Preferred Path Resolution Root**: приоритет поиска относительных путей (относительно `.canvas` или Vault root).
-- **Fallback Resolution**: автоматический поиск от корня хранилища, если файл не найден рядом с `.canvas`.
-- **Recognized Code File Extensions**: расширения файлов кода (`cs, ts, js, py, cpp, c, rs, go, java` и др.).
-- **Decorate Code Links**: включение визуальных бейджей с иконкой для ссылок.
-- **Show Notification On Open**: показ всплывающего уведомления Obsidian при переходе.
+- **Default Code Editor**, plus custom URI and CLI templates (`{path}`, `{uripath}`, `{line}`, `{col}`).
+- **Preferred path resolution root** and **fallback resolution**.
+- **Recognized code file extensions.**
+- **Decorate code links** and **show notification on open.**
+- **Mobile open mode** and **web URL template.**
 
----
+## Privacy and disclosures
 
-## 🧪 Разработка и тестирование
+- **No telemetry, no accounts, no ads.**
+- **Network:** the plugin makes no requests of its own. In *Open web URL* mode on mobile it asks your system to open the URL you configured in the browser.
+- **External programs (desktop):** it opens editor URIs (`vscode://`, `cursor://`, `jetbrains://`, or your custom URI) through the operating system. With the *Custom CLI Command* editor it runs the shell command you typed in the settings, with the file path, line and column substituted in. Only set commands you trust.
+- **Files outside the vault (desktop):** to check that a linked file exists, the plugin looks at paths resolved from the vault and, for absolute paths, anywhere on disk. It only reads file *existence*; it never reads or changes file contents on desktop. The mobile viewer reads the linked file from inside the vault to display it.
+
+## Development
 
 ```bash
-# Установка зависимостей
 npm install
-
-# Запуск тестов резолвера путей и ссылок
-node --test tests/resolver.test.mjs
-
-# Сборка плагина (генерирует main.js)
-npm run build
-
-# Режим разработки с автопересборкой (watch)
-npm run dev
+npm test          # tests run against the real src/*.ts (obsidian is mocked)
+npm run build     # type-check and produce main.js
+npm run dev       # watch mode
 ```
 
----
+To release: bump `version` in `manifest.json` and `package.json`, add the version to `versions.json`, then push a tag that equals the version (for example `1.1.1`). The *Release* workflow builds and publishes `main.js`, `manifest.json` and `styles.css`.
 
-## 📱 Мобильная версия (iOS / Android)
+## License
 
-Плагин работает и в мобильном Obsidian (`isDesktopOnly: false`). На телефоне нельзя запустить VS Code, поэтому есть два режима (Настройки → Mobile):
-
-| Режим | Что делает |
-|---|---|
-| **Built-in code viewer** (по умолчанию) | Открывает окно с кодом файла и подсвеченной строкой. Работает офлайн. |
-| **Open web URL** | Открывает ссылку на GitHub / GitLab / github.dev по шаблону, например `https://github.com/OWNER/REPO/blob/main/{relpath}#L{line}` |
-
-Важно:
-- Код должен лежать **внутри хранилища** (например, репозиторий игры синхронизируется через Obsidian Git). Абсолютные пути вне хранилища на мобильных недоступны.
-- Относительные пути считаются от папки `.canvas`, затем от корня хранилища - так же, как на десктопе.
-- Ссылки в режиме редактирования открываются по Ctrl/Cmd+клик; на телефоне пользуйтесь режимом чтения или отрисованными карточками Canvas.
+[MIT](LICENSE)
