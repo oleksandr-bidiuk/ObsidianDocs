@@ -1,0 +1,30 @@
+{
+  "name": "obsidian-canvas-code-links",
+  "version": "1.0.0",
+  "description": "Navigate to code lines using relative paths directly from Obsidian Canvas cards and markdown links.",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+    "test": "node --test"
+  },
+  "keywords": [
+    "obsidian",
+    "plugin",
+    "canvas",
+    "code",
+    "vscode",
+    "links",
+    "relative-paths"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.14.12",
+    "builtin-modules": "^3.3.0",
+    "esbuild": "^0.23.0",
+    "obsidian": "^1.7.2",
+    "tslib": "^2.6.3",
+    "typescript": "^5.5.4"
+  }
+}

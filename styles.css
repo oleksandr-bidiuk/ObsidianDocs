@@ -1,0 +1,67 @@
+/* Canvas Code Links Plugin Styling */
+
+.canvas-code-link-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 8px;
+    margin: 2px 0;
+    border-radius: 4px;
+    background-color: var(--background-secondary-alt);
+    border: 1px solid var(--interactive-accent);
+    color: var(--text-normal);
+    font-family: var(--font-monospace);
+    font-size: 0.85em;
+    cursor: pointer;
+    text-decoration: none !important;
+    transition: all 0.15s ease-in-out;
+}
+
+.canvas-code-link-badge:hover {
+    background-color: var(--interactive-accent);
+    color: var(--text-on-accent);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.canvas-code-link-badge .code-icon {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    fill: currentColor;
+}
+
+.canvas-code-card-preview {
+    border-left: 3px solid var(--interactive-accent);
+    padding-left: 8px;
+    margin-top: 6px;
+}
+
+/* Modal Styling */
+.code-link-modal-content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.code-link-modal-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.code-link-modal-row label {
+    font-size: 0.9em;
+    color: var(--text-muted);
+}
+
+.code-link-preview-box {
+    margin-top: 8px;
+    padding: 8px;
+    background-color: var(--background-primary-alt);
+    border-radius: 4px;
+    font-family: var(--font-monospace);
+    font-size: 0.85em;
+    word-break: break-all;
+    border: 1px dashed var(--background-modifier-border);
+}
