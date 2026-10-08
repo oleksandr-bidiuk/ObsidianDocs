@@ -13,7 +13,7 @@
     font-family: var(--font-monospace);
     font-size: 0.85em;
     cursor: pointer;
-    text-decoration: none !important;
+    text-decoration: none;
     transition: all 0.15s ease-in-out;
 }
 
@@ -83,3 +83,8 @@
   user-select: none;
 }
 .ccl-viewer-target { background: var(--text-highlight-bg); }
+
+a.canvas-code-link-badge,
+a.canvas-code-link-badge:hover {
+    text-decoration: none;
+}

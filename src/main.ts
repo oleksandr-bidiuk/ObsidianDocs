@@ -1,4 +1,4 @@
-import { Plugin, TFile } from "obsidian";
+import { Plugin } from "obsidian";
 import { CanvasCodeLinksSettings, DEFAULT_SETTINGS } from "./types";
 import { PathResolver } from "./pathResolver";
 import { EditorLauncher } from "./editorLauncher";
@@ -31,7 +31,7 @@ export default class CanvasCodeLinksPlugin extends Plugin {
       document,
       "click",
       (evt: MouseEvent) => {
-        this.linkInterceptor.handleClick(evt);
+        void this.linkInterceptor.handleClick(evt);
       },
       true // Capture phase!
     );
@@ -61,7 +61,7 @@ export default class CanvasCodeLinksPlugin extends Plugin {
           if (!checking) {
             // Vault-relative path (resolver falls back to the vault root); escape chars that break md links
             const vaultPath = activeFile.path.replace(/ /g, "%20").replace(/\(/g, "%28").replace(/\)/g, "%29");
-            navigator.clipboard.writeText(`[${activeFile.name}:1](${vaultPath}:1)`);
+            void navigator.clipboard.writeText(`[${activeFile.name}:1](${vaultPath}:1)`);
           }
           return true;
         }
@@ -90,7 +90,7 @@ export default class CanvasCodeLinksPlugin extends Plugin {
   }
 
   async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, (await this.loadData()) as Partial<CanvasCodeLinksSettings> | null);
   }
 
   async saveSettings() {

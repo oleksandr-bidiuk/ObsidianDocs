@@ -1,5 +1,5 @@
-import { App, MarkdownPostProcessorContext, TFile } from "obsidian";
-import { CanvasCodeLinksSettings, ParsedCodeLink } from "./types";
+import { App, MarkdownPostProcessorContext } from "obsidian";
+import { CanvasCodeLinksSettings } from "./types";
 import { PathResolver } from "./pathResolver";
 import { EditorLauncher } from "./editorLauncher";
 
@@ -78,9 +78,21 @@ export class LinkInterceptor {
 
         // Add code icon if not already added
         if (!a.querySelector(".code-icon")) {
-          const iconSpan = document.createElement("span");
-          iconSpan.className = "code-icon";
-          iconSpan.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>`;
+          const iconSpan = createSpan({ cls: "code-icon" });
+          const svg = iconSpan.createSvg("svg", {
+            attr: {
+              viewBox: "0 0 24 24",
+              width: "14",
+              height: "14",
+              stroke: "currentColor",
+              "stroke-width": "2",
+              fill: "none",
+              "stroke-linecap": "round",
+              "stroke-linejoin": "round",
+            },
+          });
+          svg.createSvg("polyline", { attr: { points: "16 18 22 12 16 6" } });
+          svg.createSvg("polyline", { attr: { points: "8 6 2 12 8 18" } });
           a.prepend(iconSpan);
         }
       }

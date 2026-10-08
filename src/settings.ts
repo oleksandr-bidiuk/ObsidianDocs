@@ -14,8 +14,6 @@ export class CanvasCodeLinksSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
-    containerEl.createEl("h2", { text: "Canvas Code Links Settings" });
-
     new Setting(containerEl)
       .setName("Default Code Editor")
       .setDesc("The editor to launch when clicking a code link in Canvas or notes.")
@@ -67,7 +65,7 @@ export class CanvasCodeLinksSettingTab extends PluginSettingTab {
         });
     }
 
-    containerEl.createEl("h3", { text: "Mobile (iOS / Android)" });
+    new Setting(containerEl).setName("Mobile (iOS / Android)").setHeading();
 
     new Setting(containerEl)
       .setName("Mobile open mode")

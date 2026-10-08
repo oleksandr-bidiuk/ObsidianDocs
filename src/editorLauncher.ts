@@ -1,8 +1,14 @@
 import * as path from "./pathUtil";
-import { App, Notice, Platform } from "obsidian";
+import { App, Editor, Notice, Platform, TFile } from "obsidian";
 import { CanvasCodeLinksSettings, ResolvedCodeTarget } from "./types";
 import { buildWebUrl } from "./mobile";
 import { CodeViewerModal } from "./codeViewerModal";
+
+/** Electron exposes Node's require on window (desktop only) */
+function getNodeRequire(): ((id: string) => unknown) | undefined {
+  if (typeof window === "undefined") return undefined;
+  return (window as unknown as { require?: (id: string) => unknown }).require;
+}
 
 export class EditorLauncher {
   constructor(private app: App, private settings: CanvasCodeLinksSettings) {}
@@ -98,8 +104,11 @@ export class EditorLauncher {
    */
   private async openExternalUri(uri: string): Promise<boolean> {
     try {
-      if (typeof window !== "undefined" && (window as any).require) {
-        const { shell } = (window as any).require("electron");
+      const nodeRequire = getNodeRequire();
+      if (nodeRequire) {
+        const { shell } = nodeRequire("electron") as {
+          shell?: { openExternal?: (url: string) => Promise<void> };
+        };
         if (shell && shell.openExternal) {
           await shell.openExternal(uri);
           return true;
@@ -153,7 +162,7 @@ export class EditorLauncher {
   }
 
   private async openWithCustomUri(absPath: string, line: number, col: number): Promise<boolean> {
-    let uri = this.settings.customUriTemplate
+    const uri = this.settings.customUriTemplate
       .replace(/\{path\}/g, absPath)
       .replace(/\{uripath\}/g, this.formatUriPath(absPath))
       .replace(/\{line\}/g, String(line))
@@ -172,9 +181,12 @@ export class EditorLauncher {
   private executeCli(command: string): Promise<boolean> {
     return new Promise((resolve) => {
       try {
-        if (typeof window !== "undefined" && (window as any).require) {
-          const cp = (window as any).require("child_process");
-          cp.exec(command, (err: any) => {
+        const nodeRequire = getNodeRequire();
+        if (nodeRequire) {
+          const cp = nodeRequire("child_process") as {
+            exec: (cmd: string, cb: (err: Error | null) => void) => unknown;
+          };
+          cp.exec(command, (err) => {
             if (err) {
               console.error("CLI exec error:", err);
               new Notice(`Failed to execute command: ${command}`);
@@ -197,15 +209,16 @@ export class EditorLauncher {
   private async openInObsidian(absPath: string, line: number, col: number): Promise<boolean> {
     // Check if the file is inside the vault
     const adapter = this.app.vault.adapter;
-    const vaultBase = (adapter as any).getBasePath ? (adapter as any).getBasePath() : "";
+    const { getBasePath } = adapter as { getBasePath?: () => string };
+    const vaultBase = getBasePath ? getBasePath.call(adapter) : "";
     
     if (vaultBase && absPath.toLowerCase().startsWith(vaultBase.toLowerCase())) {
-      let relVault = absPath.substring(vaultBase.length).replace(/^[\\/]+/, "").replace(/\\/g, "/");
+      const relVault = absPath.substring(vaultBase.length).replace(/^[\\/]+/, "").replace(/\\/g, "/");
       const file = this.app.vault.getAbstractFileByPath(relVault);
       if (file && "stat" in file) {
         const leaf = this.app.workspace.getLeaf(false);
-        await leaf.openFile(file as any);
-        const view = leaf.view as any;
+        await leaf.openFile(file as TFile);
+        const view = leaf.view as { editor?: Editor };
         if (view && view.editor) {
           view.editor.setCursor({ line: Math.max(0, line - 1), ch: Math.max(0, col - 1) });
           view.editor.scrollIntoView({
