@@ -15,6 +15,7 @@ function el(tag, attrs = {}, text = "") {
     getAttribute: (k) => e.attrs[k] ?? null,
     setAttribute: (k, v) => { e.attrs[k] = v; },
     closest: () => e,
+    matches: (sel) => sel.split(",").some((c) => attrs.class && c.trim() === "." + attrs.class),
     querySelector: (s) => children.find((c) => s === ".code-icon" && c.className === "code-icon") ?? null,
     prepend: (c) => children.unshift(c),
   };
@@ -87,9 +88,15 @@ test("post-processor does nothing when decorateLinks is off", () => {
   assert.equal(code.classList.has("canvas-code-link-badge"), false);
 });
 
-test("BUG: click inside an editing-mode (CodeMirror) link isn't recognised", { skip: "known bug: only a/.canvas-code-link-badge/[data-code-link] are handled" }, async () => {
+test("editor (CodeMirror) link opens on Ctrl/Cmd+click only", async () => {
   const { li, opened } = setup();
-  const cm = el("span", { class: "cm-link" }, "./Player.cs:77");
-  await li.handleClick(click(cm));
-  assert.equal(opened.length, 1);
+  const cm = () => el("span", { class: "cm-url" }, "(./Player.cs:77)");
+  const plain = click(cm());
+  await li.handleClick(plain);
+  assert.equal(plain.prevented, false);
+  const ctrl = click(cm());
+  ctrl.ctrlKey = true;
+  await li.handleClick(ctrl);
+  assert.equal(ctrl.prevented, true);
+  assert.equal(opened[0].line, 77);
 });

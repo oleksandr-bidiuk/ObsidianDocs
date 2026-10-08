@@ -131,11 +131,11 @@ var PathResolver = class {
     } else if (/^code:/i.test(link)) {
       link = link.replace(/^code:/i, "");
       isExplicitCodeScheme = true;
-    } else if (/^file:\/\/\/?/i.test(link)) {
-      link = link.replace(/^file:\/\/\/?/i, "");
+    } else if (/^file:\/\//i.test(link)) {
+      link = this.stripUriRoot(link.replace(/^file:\/\//i, ""));
       isExplicitCodeScheme = true;
-    } else if (/^vscode:\/\/file\//i.test(link)) {
-      link = link.replace(/^vscode:\/\/file\//i, "");
+    } else if (/^vscode:\/\/file(?=\/)/i.test(link)) {
+      link = this.stripUriRoot(link.replace(/^vscode:\/\/file/i, ""));
       isExplicitCodeScheme = true;
     }
     try {
@@ -173,7 +173,7 @@ var PathResolver = class {
     const extMatch = filePath.match(/\.([a-zA-Z0-9]+)$/);
     const ext = extMatch ? extMatch[1].toLowerCase() : "";
     const isRecognizedExt = this.settings.recognizedExtensions.map((e) => e.toLowerCase()).includes(ext);
-    const isCodeLink = isExplicitCodeScheme || isRecognizedExt || line > 1;
+    const isCodeLink = isExplicitCodeScheme || isRecognizedExt;
     return {
       originalLink: rawLink,
       filePath,
@@ -181,6 +181,12 @@ var PathResolver = class {
       column,
       isCodeLink
     };
+  }
+  /**
+   * URI paths look like /C:/dir/x.cs on Windows (drop the slash) and /home/x.cs on POSIX (keep it)
+   */
+  stripUriRoot(p) {
+    return /^\/[a-zA-Z]:[\/]/.test(p) ? p.substring(1) : p;
   }
   /**
    * Resolve relative or absolute filePath to absolute path on disk
@@ -466,8 +472,10 @@ var LinkInterceptor = class {
   async handleClick(evt) {
     const target = evt.target;
     if (!target) return;
-    const linkEl = target.closest("a, .canvas-code-link-badge, [data-code-link]");
+    const linkEl = target.closest("a, .canvas-code-link-badge, [data-code-link], .cm-link, .cm-url");
     if (!linkEl) return;
+    const isEditorLink = !!linkEl.matches?.(".cm-link, .cm-url") && !linkEl.hasAttribute("href");
+    if (isEditorLink && !(evt.ctrlKey || evt.metaKey)) return;
     let linkCandidate = "";
     if (linkEl.hasAttribute("data-code-link")) {
       linkCandidate = linkEl.getAttribute("data-code-link") || "";
@@ -476,8 +484,8 @@ var LinkInterceptor = class {
     } else if (linkEl.hasAttribute("href")) {
       linkCandidate = linkEl.getAttribute("href") || "";
     }
-    if (!linkCandidate && linkEl.tagName.toLowerCase() === "a") {
-      const text = linkEl.textContent?.trim() || "";
+    if (!linkCandidate && (isEditorLink || linkEl.tagName.toLowerCase() === "a")) {
+      const text = (linkEl.textContent?.trim() || "").replace(/^\(|\)$/g, "");
       if (text.match(/\.[a-zA-Z0-9]+(?::\d+|#L?\d+)/)) {
         linkCandidate = text;
       }
@@ -797,8 +805,8 @@ var CanvasCodeLinksPlugin = class extends import_obsidian5.Plugin {
         const activeFile = this.app.workspace.getActiveFile();
         if (activeFile) {
           if (!checking) {
-            const relPath = `./${activeFile.name}:1`;
-            navigator.clipboard.writeText(`[${activeFile.name}:1](${relPath})`);
+            const vaultPath = activeFile.path.replace(/ /g, "%20").replace(/\(/g, "%28").replace(/\)/g, "%29");
+            navigator.clipboard.writeText(`[${activeFile.name}:1](${vaultPath}:1)`);
           }
           return true;
         }

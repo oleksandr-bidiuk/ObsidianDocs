@@ -71,11 +71,11 @@ test("copy-link command is unavailable without an active file", async () => {
   assert.equal(cmd.checkCallback(true), false);
 });
 
-test("BUG: copy-link command ignores the file's folder", { skip: "known bug: copies ./<name>:1 regardless of folder" }, async () => {
-  const active = new mock.TFile("src/Player.cs");
+test("copy-link command copies a vault-relative, escaped link", async () => {
+  const active = new mock.TFile("src/My Game/Player (v2).cs");
   const p = await boot(active);
   let copied = "";
-  globalThis.navigator = { clipboard: { writeText: (s) => (copied = s) } };
+  Object.defineProperty(globalThis, "navigator", { configurable: true, value: { clipboard: { writeText: (s) => (copied = s) } } });
   p.commands.find((c) => c.id === "copy-code-link-from-active-file").checkCallback(false);
-  assert.match(copied, /src\/Player\.cs/);
+  assert.equal(copied, "[Player (v2).cs:1](src/My%20Game/Player%20%28v2%29.cs:1)");
 });

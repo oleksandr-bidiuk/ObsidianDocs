@@ -30,11 +30,11 @@ test("parseLink: explicit schemes mark link as code even without known extension
   assert.equal(p.isCodeLink, true);
   assert.equal(p.filePath, "./Makefile");
   assert.equal(parse("code://./x.cs:3").line, 3);
-  assert.equal(parse("vscode://file/home/me/x.cs:3").filePath, "home/me/x.cs");
+  assert.equal(parse("vscode://file/home/me/x.cs:3").filePath, "/home/me/x.cs");
+  assert.equal(parse("vscode://file/C:/me/x.cs:3").filePath, "C:/me/x.cs");
 });
 
 test("parseLink: file:// prefix is stripped", () => {
-  // NOTE: strips the leading slash too, so /home/x becomes home/x (see known-bug test below)
   assert.equal(parse("file:///C:/proj/x.cs:5").filePath, "C:/proj/x.cs");
   assert.equal(parse("file:///C:/proj/x.cs:5").line, 5);
 });
@@ -67,13 +67,12 @@ test("parseLink: custom recognizedExtensions is respected", () => {
   assert.equal(r.parseLink("a.cs").isCodeLink, false);
 });
 
-// ---- Known bugs: assert DESIRED behaviour, skipped until fixed ----
-test("BUG: plain note link with a number is hijacked as a code link", { skip: "known bug: line > 1 makes any link a code link" }, () => {
+test("plain note link with a number is not hijacked as a code link", () => {
   assert.equal(parse("[[Chapter:5]]").isCodeLink, false);
   assert.equal(parse("Note#5").isCodeLink, false);
 });
 
-test("BUG: file:///home/x/y.cs loses leading slash", { skip: "known bug: file:// regex eats the root slash on POSIX" }, () => {
+test("file:///home/x/y.cs keeps its leading slash", () => {
   assert.equal(parse("file:///home/me/x.cs:5").filePath, "/home/me/x.cs");
 });
 

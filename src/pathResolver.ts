@@ -49,18 +49,18 @@ export class PathResolver {
 
     let isExplicitCodeScheme = false;
 
-    // Remove prefixes like code://, code:, vscode://file/, file://
+    // Remove prefixes like code://, code:, vscode://file, file://
     if (/^code:\/\//i.test(link)) {
       link = link.replace(/^code:\/\//i, "");
       isExplicitCodeScheme = true;
     } else if (/^code:/i.test(link)) {
       link = link.replace(/^code:/i, "");
       isExplicitCodeScheme = true;
-    } else if (/^file:\/\/\/?/i.test(link)) {
-      link = link.replace(/^file:\/\/\/?/i, "");
+    } else if (/^file:\/\//i.test(link)) {
+      link = this.stripUriRoot(link.replace(/^file:\/\//i, ""));
       isExplicitCodeScheme = true;
-    } else if (/^vscode:\/\/file\//i.test(link)) {
-      link = link.replace(/^vscode:\/\/file\//i, "");
+    } else if (/^vscode:\/\/file(?=\/)/i.test(link)) {
+      link = this.stripUriRoot(link.replace(/^vscode:\/\/file/i, ""));
       isExplicitCodeScheme = true;
     }
 
@@ -115,7 +115,8 @@ export class PathResolver {
 
     const isRecognizedExt = this.settings.recognizedExtensions.map(e => e.toLowerCase()).includes(ext);
 
-    const isCodeLink = isExplicitCodeScheme || isRecognizedExt || line > 1;
+    // A line number alone must not turn arbitrary links (e.g. [[Chapter:5]]) into code links
+    const isCodeLink = isExplicitCodeScheme || isRecognizedExt;
 
     return {
       originalLink: rawLink,
@@ -124,6 +125,13 @@ export class PathResolver {
       column,
       isCodeLink,
     };
+  }
+
+  /**
+   * URI paths look like /C:/dir/x.cs on Windows (drop the slash) and /home/x.cs on POSIX (keep it)
+   */
+  private stripUriRoot(p: string): string {
+    return /^\/[a-zA-Z]:[\/]/.test(p) ? p.substring(1) : p;
   }
 
   /**
