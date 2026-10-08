@@ -40,13 +40,15 @@ export class PathResolver {
       const vp = this.toVaultPath(absPath);
       return vp ? this.app.vault.adapter.exists(vp) : false;
     }
-    if (!Platform.isDesktop) return false;
-    try {
-      const fs = require("fs") as typeof import("fs");
-      return fs.existsSync(absPath);
-    } catch {
-      return false;
+    if (Platform.isDesktop) {
+      try {
+        const fs = require("fs") as { existsSync(p: string): boolean };
+        return fs.existsSync(absPath);
+      } catch {
+        return false;
+      }
     }
+    return false;
   }
 
   /**

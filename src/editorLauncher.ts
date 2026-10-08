@@ -215,9 +215,9 @@ export class EditorLauncher {
     if (vaultBase && absPath.toLowerCase().startsWith(vaultBase.toLowerCase())) {
       const relVault = absPath.substring(vaultBase.length).replace(/^[\\/]+/, "").replace(/\\/g, "/");
       const file = this.app.vault.getAbstractFileByPath(relVault);
-      if (file && "stat" in file) {
+      if (file instanceof TFile) {
         const leaf = this.app.workspace.getLeaf(false);
-        await leaf.openFile(file as TFile);
+        await leaf.openFile(file);
         const view = leaf.view as { editor?: Editor };
         if (view && view.editor) {
           view.editor.setCursor({ line: Math.max(0, line - 1), ch: Math.max(0, col - 1) });
